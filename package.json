@@ -1,0 +1,12 @@
+{
+  "name": "hoduhosting-backend",
+  "version": "1.0.0",
+  "description": "Hodu Hosting Backend API",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
