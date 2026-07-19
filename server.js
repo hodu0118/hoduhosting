@@ -4,11 +4,17 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
-// 프론트엔드 정적 파일들을 폴더에서 읽어오도록 설정
+
+// public 폴더의 정적 파일들을 서빙할 수 있도록 절대 경로 설정 보완
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 현재 실행 중인 유저들의 봇 프로세스들을 저장하는 공간
 const activeBots = {};
+
+// [기능 0] 메인 페이지 접속 시 index.html을 강제로 보내주도록 설정 (에러 해결 핵심)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 // [기능 1] 봇 실행 API
 app.post('/api/bot/start', (req, res) => {
@@ -18,7 +24,6 @@ app.post('/api/bot/start', (req, res) => {
         return res.status(400).json({ success: false, message: '유저 ID와 봇 코드가 필요합니다.' });
     }
 
-    // 이미 실행 중인 봇이 있다면 먼저 종료
     if (activeBots[userId]) {
         clearInterval(activeBots[userId].interval);
     }
@@ -26,11 +31,7 @@ app.post('/api/bot/start', (req, res) => {
     try {
         console.log(`[${userId}] 봇 가동 시작...`);
         
-        // Render 무료 환경에서 격리 실행을 흉내 내기 위해 간단한 샌드박스 형태로 실행
-        // 실제 유저 코드를 안전하게 격리 구동하기 위한 가상 컨텍스트 함수
         const botFunction = new Function('console', botCode);
-        
-        // 봇 콘솔 로그 기록용
         let logs = [];
         const customConsole = {
             log: (...args) => {
@@ -45,13 +46,11 @@ app.post('/api/bot/start', (req, res) => {
             }
         };
 
-        // 봇 실행
         botFunction(customConsole);
 
-        // Render 무료 서버 자원 고갈을 막기 위한 강제 루프 모니터링 (예시 핑)
         const interval = setInterval(() => {
             customConsole.log("봇이 24시간 감시 모드로 정상 작동 중입니다...");
-        }, 10000); // 10초마다 로그 기록
+        }, 10000); 
 
         activeBots[userId] = {
             interval: interval,
@@ -82,7 +81,7 @@ app.post('/api/bot/stop', (req, res) => {
 
 // [기능 3] 봇 로그 가져오기 API
 app.get('/api/bot/logs/:userId', (req, res) => {
-    const { userId } = req.query;
+    const { userId } = req.params; // 쿼리가 아니라 파라미터로 받도록 변경하여 안정성 향상
     if (activeBots[userId]) {
         res.json({ success: true, logs: activeBots[userId].logs, status: activeBots[userId].status });
     } else {
